@@ -69,6 +69,8 @@ class TradeManager:
 
             if updatedOrder['state'] == "filled":
 
+                DatabaseManager.update_order_entry(order.orderId, updatedOrder['state'])
+
                 if updatedOrder['direction'] == "buy":
 
                     if ConfigManager.get_config().fcbMode:
@@ -97,5 +99,6 @@ class TradeManager:
                         #Create new one
                         newOrder = TradeManager.create_new_buy_order(ConfigManager.get_config().basePrice + buyPriceOffset, updatedOrder['quantity'], False)
                         DatabaseManager.create_order_entry(newOrder['order']['orderId'], newOrder['order']['price'],newOrder['order']['quantity'], newOrder['order']['direction'])
+            time.sleep(0.5)
 
-                DatabaseManager.update_order_entry(order.orderId, updatedOrder['state'])
+                
