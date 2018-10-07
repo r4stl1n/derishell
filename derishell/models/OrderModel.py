@@ -9,6 +9,7 @@ class OrderModel(Model):
     price = DoubleField(default=0.0)
     direction = CharField(default="")
     status = CharField(default="")
+    iuid = CharField(default="")
     createdDate = DateTimeField(default=datetime.datetime.now)
 
     class Meta:

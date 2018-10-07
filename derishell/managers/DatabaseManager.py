@@ -1,3 +1,4 @@
+import uuid
 from derishell.models.OrderModel import OrderModel
 
 from derishell.util.Util import Util
@@ -20,12 +21,28 @@ class DatabaseManager:
         orderModel.orderId = orderid
         orderModel.contractSize = contractsize
         orderModel.price = price
-        orderModel.status = "Open"
+        orderModel.status = "pending"
         orderModel.direction = direction
+        orderModel.iuid = str(uuid.uuid4())
         orderModel.save()
 
         return orderModel
         
+    @staticmethod
+    def update_new_order_entry(order, orderid, status):
+        try:
+
+            orderModel = OrderModel.get(OrderModel.iuid == order.iuid)
+            orderModel.orderId = orderid
+            orderModel.status = status
+            orderModel.save()
+
+            return orderModel
+
+        except:
+
+            Util.get_logger().debug("Failed to retrieve order: " + str(orderid))
+            return None  
 
     @staticmethod
     def update_order_entry(orderid, status):
@@ -43,20 +60,6 @@ class DatabaseManager:
             Util.get_logger().debug("Failed to retrieve order: " + str(orderid))
             return None
 
-    @staticmethod
-    def update_sell_order_entry(orderid, amount):
-        try:
-
-            orderModel = OrderModel.get(OrderModel.orderId == orderid)
-            orderModel.amount = amount
-            orderModel.save()
-
-            return orderModel
-
-        except:
-
-            Util.get_logger().debug("Failed to retrieve order: " + str(orderid))
-            return None  
 
     @staticmethod
     def get_order_by_id(orderid):
@@ -77,11 +80,8 @@ class DatabaseManager:
 
     @staticmethod
     def get_all_open_orders():
-        return OrderModel.select().where(OrderModel.status == 'Open')
+        return OrderModel.select().where(OrderModel.status == 'open')
 
     @staticmethod
-    def get_open_sell_order():
-        try:
-            return OrderModel.select().where(OrderModel.status == 'Open' & OrderModel.direction == "sell")
-        except:
-            return None
+    def get_all_pending_orders():
+        return OrderModel.select().where((OrderModel.orderId == '') & (OrderModel.status == "pending"))

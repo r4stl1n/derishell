@@ -117,7 +117,10 @@ class DeriShell(cmd.Cmd):
 
     def do_start_update(self,line):
         if self.client1 != None:
-            self.rt = RepeatedTimer(10, TradeManager.update_order_status)  
+            self.rt = RepeatedTimer(10, TradeManager.update_all)
+
+    def do_single_update(self, line):
+        TradeManager.update_all()  
 
     def do_update_orders(self, line):
         if self.client1 != None:
