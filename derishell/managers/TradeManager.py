@@ -1,7 +1,12 @@
 import time
+import collections
+
+from terminaltables import AsciiTable
+
 from derishell.util.deribit_api import RestClient
 
 from derishell.util.Util import Util
+from derishell.util.ColorText import ColorText
 from derishell.managers.ConfigManager import ConfigManager
 from derishell.managers.DatabaseManager import DatabaseManager
 
@@ -64,9 +69,9 @@ class TradeManager:
             currentPrice = client.getsummary(ConfigManager.get_config().tradeInsturment)['askPrice']
 
             if order.direction == 'buy':
-                if currentPrice > order.price:
-                    newOrder = TradeManager.create_new_buy_order(order.price, order.contractSize)
-                    DatabaseManager.update_new_order_entry(order, newOrder['order']['orderId'], "open")
+                #if currentPrice > order.price:
+                newOrder = TradeManager.create_new_buy_order(order.price, order.contractSize)
+                DatabaseManager.update_new_order_entry(order, newOrder['order']['orderId'], "open")
 
             else:
                 newOrder = TradeManager.create_new_sell_order(order.price, order.contractSize)
@@ -116,4 +121,68 @@ class TradeManager:
         TradeManager.update_order_status()
         TradeManager.update_pending_orders()
 
-                
+
+    @staticmethod
+    def show_sells_table(orders):
+
+        sortedDict = {}
+
+        for order in orders:
+            sortedDict[order.price] = order
+
+        sortedDict = collections.OrderedDict(sorted(sortedDict.items()))
+
+        table_data = [
+            ['#', 'OrderId', 'Price', 'Contract Size', 'Status', 'Direction'],
+        ]
+
+        for order in list(sortedDict.values())[::-1]:
+            if order.direction == "sell":
+                table_data.append([order.id, order.orderId, order.price, order.contractSize, order.status, ColorText.red(order.direction)])
+
+        table = AsciiTable(table_data, "Current Open Sell Orders")
+        print(table.table)
+
+    @staticmethod
+    def show_buys_table(orders):
+
+        sortedDict = {}
+
+        for order in orders:
+            sortedDict[order.price] = order
+
+        sortedDict = collections.OrderedDict(sorted(sortedDict.items()))
+
+        table_data = [
+            ['#', 'OrderId', 'Price', 'Contract Size', 'Status', 'Direction'],
+        ]
+
+        for order in list(sortedDict.values())[::-1]:
+            if order.direction == "buy":
+                table_data.append([order.id, order.orderId, order.price, order.contractSize, ColorText.yellow(order.status) if order.status=="pending" else order.status, ColorText.green(order.direction)])
+
+        table = AsciiTable(table_data, "Current Open Buy Orders")
+        print(table.table)    
+
+    @staticmethod
+    def show_current_orders():
+
+        openOrders = DatabaseManager.get_all_open_orders() + DatabaseManager.get_all_pending_orders()
+
+        print()
+
+        table_data = []
+
+        table_data.append([ColorText.yellow(ConfigManager.get_config().basePrice)])
+        table = AsciiTable(table_data, "Base")
+        print(table.table)
+
+        print()
+
+        TradeManager.show_sells_table(openOrders)
+
+        print()
+
+        TradeManager.show_buys_table(openOrders)
+
+        print()

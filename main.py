@@ -1,5 +1,7 @@
 import cmd
 import time
+import collections
+
 from derishell.util.deribit_api import RestClient
 
 from derishell.util.Util import Util
@@ -103,6 +105,9 @@ class DeriShell(cmd.Cmd):
             TradeManager.setup_inital_ladder()
 
     def do_reset(self, line):
+        if self.rt:
+            self.rt.stop()
+    
         TradeManager.cancel_all_current_orders()
         TradeManager.close_all_positions()
 
@@ -117,7 +122,10 @@ class DeriShell(cmd.Cmd):
 
     def do_start_update(self,line):
         if self.client1 != None:
-            self.rt = RepeatedTimer(10, TradeManager.update_all)
+            if self.rt == None:
+                self.rt = RepeatedTimer(10, TradeManager.update_all)
+            else:
+                self.rt.start()
 
     def do_single_update(self, line):
         TradeManager.update_all()  
@@ -126,10 +134,17 @@ class DeriShell(cmd.Cmd):
         if self.client1 != None:
             TradeManager.update_order_status()
 
+    def do_show_orders(self, line):
+        TradeManager.show_current_orders()
+
     def do_clear(self, line):
         Util.clear_screen()
 
     def do_quit(self, line):
+        self.close()
+        return True
+
+    def do_exit(self, line):
         self.close()
         return True
 
