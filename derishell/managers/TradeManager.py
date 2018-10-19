@@ -80,14 +80,19 @@ class TradeManager:
 
         for order in orders:
 
-            if order.direction == 'buy':
-                #if currentPrice > order.price:
-                newOrder = TradeManager.create_new_buy_order(order.price, order.contractSize)
-                DatabaseManager.update_new_order_entry(order, newOrder['order']['orderId'], "open")
+            try:
 
-            else:
-                newOrder = TradeManager.create_new_sell_order(order.price, order.contractSize)
-                DatabaseManager.update_new_order_entry(order, newOrder['order']['orderId'], "open")
+                if order.direction == 'buy':
+                    #if currentPrice > order.price:
+                    newOrder = TradeManager.create_new_buy_order(order.price, order.contractSize)
+                    DatabaseManager.update_new_order_entry(order, newOrder['order']['orderId'], "open")
+
+                else:
+                    newOrder = TradeManager.create_new_sell_order(order.price, order.contractSize)
+                    DatabaseManager.update_new_order_entry(order, newOrder['order']['orderId'], "open")
+
+            except Exception as e:
+                print(e)
 
 
     @staticmethod
