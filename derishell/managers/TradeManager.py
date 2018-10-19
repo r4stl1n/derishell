@@ -12,6 +12,8 @@ from derishell.managers.DatabaseManager import DatabaseManager
 
 class TradeManager:
 
+    stopLossTriggered = False
+
     @staticmethod
     def create_new_buy_order(price, amount):
         Util.get_logger().info("Placing Buy Order for " + str(amount) + " contracts at " + str(price))
@@ -27,13 +29,26 @@ class TradeManager:
         return order
 
     @staticmethod
+    def create_sl_sell_order(price, amount):
+        Util.get_logger().info("Placing SL Sell Order for " + str(amount) + " contracts at " + str(price))
+        client = RestClient(ConfigManager.get_config().apiKey1, ConfigManager.get_config().apiSecret1, ConfigManager.get_config().apiUrl)
+        order = client.sell_stop_market_order(ConfigManager.get_config().tradeInsturment, amount, price)
+        return order        
+
+    @staticmethod
     def setup_inital_ladder():
         Util.get_logger().info("Setup initial ladder")
 
         for x in range(ConfigManager.get_config().numOfOrders):
             DatabaseManager.create_order_entry("", (ConfigManager.get_config().basePrice - ConfigManager.get_config().priceDistance) - (ConfigManager.get_config().priceDistance * x), ConfigManager.get_config().contractSize, "buy")
 
+
         TradeManager.update_pending_orders()
+
+        # Create the stop loss order
+        order = TradeManager.create_sl_sell_order(ConfigManager.get_config().stopLossPrice, ConfigManager.get_config().numOfOrders * ConfigManager.get_config().contractSize)
+        DatabaseManager.create_sl_order_entry(order['order']['orderId'], ConfigManager.get_config().stopLossPrice, ConfigManager.get_config().numOfOrders * ConfigManager.get_config().contractSize)
+
 
     @staticmethod
     def cancel_all_current_orders():
@@ -62,11 +77,8 @@ class TradeManager:
     def update_pending_orders():
 
         orders = DatabaseManager.get_all_pending_orders()
-        client = RestClient(ConfigManager.get_config().apiKey1, ConfigManager.get_config().apiSecret1, ConfigManager.get_config().apiUrl)
 
         for order in orders:
-
-            currentPrice = client.getsummary(ConfigManager.get_config().tradeInsturment)['askPrice']
 
             if order.direction == 'buy':
                 #if currentPrice > order.price:
@@ -81,40 +93,54 @@ class TradeManager:
     @staticmethod
     def update_order_status():
 
-        orders = DatabaseManager.get_all_open_orders()
+        if TradeManager.stopLossTriggered == False:
+            orders = DatabaseManager.get_all_open_orders()
 
-        client = RestClient(ConfigManager.get_config().apiKey1, ConfigManager.get_config().apiSecret1, ConfigManager.get_config().apiUrl)
+            client = RestClient(ConfigManager.get_config().apiKey1, ConfigManager.get_config().apiSecret1, ConfigManager.get_config().apiUrl)
 
-        for order in orders:
+            for order in orders:
 
-            try:
-                
-                updatedOrder = client.getorderstate(order.orderId)
+                try:
+                    
+                    updatedOrder = client.getorderstate(order.orderId)
 
-                DatabaseManager.update_order_entry(order.orderId, updatedOrder['state'])
+                    DatabaseManager.update_order_entry(order.orderId, updatedOrder['state'])
 
-                if updatedOrder['state'] == "filled":
+                    if updatedOrder['state'] == "filled":
 
-                    if updatedOrder['direction'] == "buy":
+                        if "SLMS" in order.orderId:
+                            # Stop loss fired
+                            Util.get_logger().info("STOP LOSS FIRED - CANCELLING ALL ORDERS")
+                            TradeManager.cancel_all_current_orders()
 
-                        if ConfigManager.get_config().fcbMode:
-                            #Create new one
-                            DatabaseManager.create_order_entry("", order.price + ConfigManager.get_config().priceDistance, ConfigManager.get_config().contractSize, "sell")
+                            TradeManager.stopLossTriggered = True
+
 
                         else:
-                            sellPriceOffset = ConfigManager.get_config().basePrice - order.price
-                            DatabaseManager.create_order_entry("", ConfigManager.get_config().basePrice + sellPriceOffset, ConfigManager.get_config().contractSize, "sell")
+                            if updatedOrder['direction'] == "buy":
 
-                    else:
+                                if ConfigManager.get_config().fcbMode:
+                                    #Create new one
+                                    DatabaseManager.create_order_entry("", order.price + ConfigManager.get_config().priceDistance, ConfigManager.get_config().contractSize, "sell")
 
-                        if ConfigManager.get_config().fcbMode:
-                            DatabaseManager.create_order_entry("", order.price - ConfigManager.get_config().priceDistance, ConfigManager.get_config().contractSize, "buy")
-                        else:
-                            # put in buy order
-                            buyPriceOffset = order.price - ConfigManager.get_config().basePrice
-                            DatabaseManager.create_order_entry("",ConfigManager.get_config().basePrice + buyPriceOffset , ConfigManager.get_config().contractSize, "buy")
-            except:
-                pass
+                                else:
+                                    sellPriceOffset = ConfigManager.get_config().basePrice - order.price
+                                    DatabaseManager.create_order_entry("", ConfigManager.get_config().basePrice + sellPriceOffset, ConfigManager.get_config().contractSize, "sell")
+
+                            else:
+
+                                if ConfigManager.get_config().fcbMode:
+                                    DatabaseManager.create_order_entry("", order.price - ConfigManager.get_config().priceDistance, ConfigManager.get_config().contractSize, "buy")
+                                else:
+                                    # put in buy order
+                                    buyPriceOffset = order.price - ConfigManager.get_config().basePrice
+                                    DatabaseManager.create_order_entry("",ConfigManager.get_config().basePrice + buyPriceOffset , ConfigManager.get_config().contractSize, "buy")
+                except:
+                    pass
+        else:
+            #We no longer update our queue until user resets
+            pass
+
 
     @staticmethod
     def update_all():

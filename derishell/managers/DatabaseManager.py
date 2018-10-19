@@ -27,7 +27,21 @@ class DatabaseManager:
         orderModel.save()
 
         return orderModel
+ 
+    @staticmethod
+    def create_sl_order_entry(orderid, price, contractsize):
         
+        orderModel = OrderModel()
+        orderModel.orderId = orderid
+        orderModel.contractSize = contractsize
+        orderModel.price = price
+        orderModel.status = "open"
+        orderModel.direction = "sell"
+        orderModel.iuid = str(uuid.uuid4())
+        orderModel.save()
+
+        return orderModel
+
     @staticmethod
     def update_new_order_entry(order, orderid, status):
         try:
@@ -73,6 +87,14 @@ class DatabaseManager:
 
             Util.get_logger().debug("Failed to retrieve order: " + str(orderid))
             return None
+
+    @staticmethod
+    def delete_all_order_models():
+        models = DatabaseManager.get_all_orders()
+        
+        for model in models:
+
+            model.delete_instance()
 
     @staticmethod
     def get_all_orders():

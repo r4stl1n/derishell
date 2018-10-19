@@ -142,6 +142,31 @@ class RestClient(object):
 
         return self.request("/api/v1/private/sell", options)
 
+    def buy_stop_market_order(self, instrument, quantity, price):
+        options = {
+            "instrument": instrument,
+            "quantity": quantity,
+            "stopPx": price,
+            "type": "stop_market",
+            "execInst": "mark_price",
+            "time_in_force": "good_till_cancel",
+
+        }
+
+        return self.request("/api/v1/private/buy", options)
+
+    def sell_stop_market_order(self, instrument, quantity, price):
+        options = {
+            "instrument": instrument,
+            "quantity": quantity,
+            "stopPx": price,
+            "type": "stop_market",
+            "execInst": "mark_price",
+            "time_in_force": "good_till_cancel",
+        }
+
+        return self.request("/api/v1/private/sell", options)
+
 
     def cancel(self, orderId):
         options = {

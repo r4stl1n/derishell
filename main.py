@@ -41,7 +41,7 @@ class DeriShell(cmd.Cmd):
             config = ConfigManager.get_config()
             config.basePrice = float(arguments[0])
             ConfigManager.update_config(config)
-            Util.get_logger().info("Upddated base price to: " + str(config.basePrice))
+            Util.get_logger().info("Updated base price to: " + str(config.basePrice))
         else:
             Util.get_logger().info("Not enough parameters. Ex. set_base_price 6000")
 
@@ -52,7 +52,7 @@ class DeriShell(cmd.Cmd):
             config = ConfigManager.get_config()
             config.numOfOrders = int(arguments[0])
             ConfigManager.update_config(config)
-            Util.get_logger().info("Upddated number of orders to: " + str(config.numOfOrders))
+            Util.get_logger().info("Updated number of orders to: " + str(config.numOfOrders))
         else:
             Util.get_logger().info("Not enough parameters. Ex. set_num_orders 5")
 
@@ -64,7 +64,7 @@ class DeriShell(cmd.Cmd):
             config = ConfigManager.get_config()
             config.contractSize = int(arguments[0])
             ConfigManager.update_config(config)
-            Util.get_logger().info("Upddated number of contracts to: " + str(config.contractSize))
+            Util.get_logger().info("Updated number of contracts to: " + str(config.contractSize))
         else:
             Util.get_logger().info("Not enough parameters. Ex. set_contract_amount 100")       
 
@@ -76,9 +76,21 @@ class DeriShell(cmd.Cmd):
             config = ConfigManager.get_config()
             config.priceDistance = float(arguments[0])
             ConfigManager.update_config(config)
-            Util.get_logger().info("Upddated price difference to: " + str(config.priceDistance))
+            Util.get_logger().info("Updated price difference to: " + str(config.priceDistance))
         else:
             Util.get_logger().info("Not enough parameters. Ex. set_price_distance 1(in USD)")    
+
+    def do_set_sl_price(self, line):
+
+        arguments = Util.safe_str_split_on_space(line)
+
+        if len(arguments) >= 1:
+            config = ConfigManager.get_config()
+            config.stopLossPrice = float(arguments[0])
+            ConfigManager.update_config(config)
+            Util.get_logger().info("Updated Stop Loss Price to: " + str(config.priceDistance))
+        else:
+            Util.get_logger().info("Not enough parameters. Ex. set_sl_price 6000(in USD)")    
 
     def do_check_accounts(self, line):
         if self.client1 != None:
@@ -105,11 +117,16 @@ class DeriShell(cmd.Cmd):
             TradeManager.setup_inital_ladder()
 
     def do_reset(self, line):
+
         if self.rt:
             self.rt.stop()
-    
+        
         TradeManager.cancel_all_current_orders()
         TradeManager.close_all_positions()
+        TradeManager.stopLossTriggered = False
+        DatabaseManager.delete_all_order_models()
+
+        Util.get_logger().info("Derishell Reset")
 
     def do_cancel_orders(self, line):
         TradeManager.cancel_all_current_orders()
