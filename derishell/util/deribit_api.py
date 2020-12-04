@@ -17,12 +17,12 @@ class RestClient(object):
     def request(self, action, data):
         response = None
 
-        if action.startswith("/api/v1/private/"):
+        if action.startswith("/api/v2/private/"):
             if self.key is None or self.secret is None:
                 raise Exception("Key or secret empty")
-
-            signature = self.generate_signature(action, data)
-            response = self.session.post(self.url + action, data=data, headers={'x-deribit-sig': signature}, verify=True)
+            
+            token = base64.b64encode(self.key + ":" + self.secret)
+            response = self.session.get(self.url + action, params=data, headers={'Authorization': "Basic " + token}, verify=True)
         else:
             response = self.session.get(self.url + action, params=data, verify=True)
         
@@ -41,81 +41,51 @@ class RestClient(object):
         else:
             return "Ok"
 
-    def generate_signature(self, action, data):
-        tstamp = int(time.time()* 1000)
-        signature_data = {
-            '_': tstamp,
-            '_ackey': self.key,
-            '_acsec': self.secret,
-            '_action': action
-        }
-        signature_data.update(data)
-        sorted_signature_data = OrderedDict(sorted(signature_data.items(), key=lambda t: t[0]))
-
-
-        def converter(data):
-            key = data[0]
-            value = data[1]
-            if isinstance(value, list):
-                return '='.join([str(key), ''.join(value)])
-            else:
-                return '='.join([str(key), str(value)])
-
-        items = map(converter, sorted_signature_data.items())
-
-        signature_string = '&'.join(items)
-
-        sha256 = hashlib.sha256()
-        sha256.update(signature_string.encode("utf-8"))
-        sig = self.key + "." + str(tstamp) + "." 
-        sig += base64.b64encode(sha256.digest()).decode("utf-8")
-        return sig
-
     def getorderbook(self, instrument):
-        return self.request("/api/v1/public/getorderbook", {'instrument': instrument})
+        return self.request("/api/v2/public/get_order_book", {'instrument_name': instrument})
 
-    def getinstruments(self):
-        return self.request("/api/v1/public/getinstruments", {})
-
+    def getinstruments(self, currency="BTC"):     #currency is required for this function
+        return self.request("/api/v2/public/get_instruments", {"currency": currency})
 
     def getcurrencies(self):
-        return self.request("/api/v1/public/getcurrencies", {})
-
+        return self.request("/api/v2/public/get_currencies", {})
 
     def getlasttrades(self, instrument, count=None, since=None):
         options = {
-            'instrument': instrument
+            'instrument_name': instrument
         }
-
-        if since:
-            options['since'] = since
 
         if count:
             options['count'] = count
 
-        return self.request("/api/v1/public/getlasttrades", options)
+        if since is None:
+            return self.request("/api/v2/public/get_last_trades_by_instrument", options)
+
+        options['start_timestamp'] = since
+        options['end_timestamp'] = int(time.time()* 1000)
+        return self.request('/api/v2/public/get_last_trades_by_instrument_and_time', options)
 
 
     def getsummary(self, instrument):
-        return self.request("/api/v1/public/getsummary", {"instrument": instrument})
+        return self.request("/api/v2/public/get_book_summary_by_instrument", {"instrument_name": instrument})
 
 
-    def index(self):
-        return self.request("/api/v1/public/index", {})
+    def index(self, currency="btc_usd"):    #currency is required for this function
+        return self.request("/api/v2/public/get_index_price", {"index_name": currency})
 
     
     def stats(self):
-        return self.request("/api/v1/public/stats", {})
+        return self.request("/api/v2/public/get_trade_volumes", {})
 
 
-    def account(self):
-        return self.request("/api/v1/private/account", {})
+    def account(self, currency="BTC"):      #currency is required for this function
+        return self.request("/api/v2/private/get_account_summary", {"currency": currency})
 
 
     def buy(self, instrument, quantity, price, postOnly=None, label=None):
         options = {
-            "instrument": instrument,
-            "quantity": quantity,
+            "instrument_name": instrument,
+            "amount": quantity,
             "price": price
         }
   
@@ -123,112 +93,89 @@ class RestClient(object):
             options["label"] = label
 
         if postOnly:
-            options["postOnly"] = postOnly
+            options["post_only"] = postOnly
 
-        return self.request("/api/v1/private/buy", options)
+        return self.request("/api/v2/private/buy", options)
 
 
     def sell(self, instrument, quantity, price, postOnly=None, label=None):
         options = {
-            "instrument": instrument,
-            "quantity": quantity,
+            "instrument_name": instrument,
+            "amount": quantity,
             "price": price
         }
 
         if label:
             options["label"] = label
-        if postOnly:
-            options["postOnly"] = postOnly
 
-        return self.request("/api/v1/private/sell", options)
+        if postOnly:
+            options["post_only"] = postOnly
+
+        return self.request("/api/v2/private/sell", options)
 
     def buy_stop_market_order(self, instrument, quantity, price):
         options = {
-            "instrument": instrument,
-            "quantity": quantity,
-            "stopPx": price,
+            "instrument_name": instrument,
+            "amount": quantity,
+            "stop_price": price,
             "type": "stop_market",
-            "execInst": "mark_price",
-            "time_in_force": "good_till_cancel",
+            "trigger": "mark_price",
+            "time_in_force": "good_til_cancelled",
 
         }
 
-        return self.request("/api/v1/private/buy", options)
+        return self.request("/api/v2/private/buy", options)
 
     def sell_stop_market_order(self, instrument, quantity, price):
         options = {
-            "instrument": instrument,
-            "quantity": quantity,
-            "stopPx": price,
+            "instrument_name": instrument,
+            "amount": quantity,
+            "stop_price": price,
             "type": "stop_market",
-            "execInst": "mark_price",
-            "time_in_force": "good_till_cancel",
+            "trigger": "mark_price",
+            "time_in_force": "good_till_cancelled",
         }
 
-        return self.request("/api/v1/private/sell", options)
+        return self.request("/api/v2/private/sell", options)
 
 
     def cancel(self, orderId):
-        options = {
-            "orderId": orderId
-        }  
-
-        return self.request("/api/v1/private/cancel", options)
+        return self.request("/api/v2/private/cancel", {"order_id": orderId})
 
 
-    def cancelall(self, typeDef="all"):
-        return self.request("/api/v1/private/cancelall", {"type": typeDef})
+    def cancelall(self, typeDef="all"):     #Doesn't take arguments. Argument typeDef should be removed 
+        return self.request("/api/v2/private/cancelall", {})
 
 
     def edit(self, orderId, quantity, price):
         options = {
-            "orderId": orderId,
-            "quantity": quantity,
+            "order_id": orderId,
+            "amount": quantity,
             "price": price
         }
 
-        return self.request("/api/v1/private/edit", options)
+        return self.request("/api/v2/private/edit", options)
 
 
-    def getopenorders(self, instrument=None, orderId=None):
-        options = {}
-
+    def getopenorders(self, instrument=None, orderId=None, currency="BTC"):#currency argument is optionally added. orderId to be removed
         if instrument:
-            options["instrument"] = instrument 
-        if orderId:
-            options["orderId"] = orderId
+            self.request("/api/v2/private/get_open_orders_by_instrument", {"instrument_name": instrument})
 
-        return self.request("/api/v1/private/getopenorders", options)
+        return self.request("/api/v2/private/get_open_orders_by_currency", {"currency": currency})
 
-    def getorderstate(self, orderId=None):
-        options = {}
-
-        if orderId:
-            options["orderId"] = orderId
-
-        return self.request("/api/v1/private/orderstate", options)  
+    def getorderstate(self, orderId=None):      #orderId is required not optional
+        return self.request("/api/v2/private/get_order_state", {"order_id": orderId})  
 
 
-    def positions(self):
-        return self.request("/api/v1/private/positions", {})
+    def positions(self, currency="BTC"):    #currency is required for this function
+        return self.request("/api/v2/private/get_positions", {"currency": currency})
 
 
-    def orderhistory(self, count=None):
-        options = {}
+    def orderhistory(self, count=None, currency="BTC"):     #currency is required for this function
+        options = {"currency": currency}
         if count:
             options["count"] = count
 
-        return self.request("/api/v1/private/orderhistory", options)
+        return self.request("/api/v2/private/get_order_history_by_currency", options)
 
-
-    def tradehistory(self, countNum=None, instrument="all", startTradeId=None):
-        options = {
-            "instrument": instrument
-        }
-  
-        if countNum:
-            options["count"] = countNum
-        if startTradeId:
-            options["startTradeId"] = startTradeId
-        
-        return self.request("/api/v1/private/tradehistory", options)
+#tradehistory is deprecated

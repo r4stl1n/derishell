@@ -17,21 +17,21 @@ class TradeManager:
     @staticmethod
     def create_new_buy_order(price, amount):
         Util.get_logger().info("Placing Buy Order for " + str(amount) + " contracts at " + str(price))
-        client = RestClient(ConfigManager.get_config().apiKey1, ConfigManager.get_config().apiSecret1, ConfigManager.get_config().apiUrl)
+        client = RestClient(ConfigManager.get_config().apiKey2, ConfigManager.get_config().apiSecret2, ConfigManager.get_config().apiUrl)
         order = client.buy(ConfigManager.get_config().tradeInsturment, amount, price, False, "")
         return order
 
     @staticmethod
     def create_new_sell_order(price, amount):
         Util.get_logger().info("Placing Sell Order for " + str(amount) + " contracts at " + str(price))
-        client = RestClient(ConfigManager.get_config().apiKey1, ConfigManager.get_config().apiSecret1, ConfigManager.get_config().apiUrl)
+        client = RestClient(ConfigManager.get_config().apiKey2, ConfigManager.get_config().apiSecret2, ConfigManager.get_config().apiUrl)
         order = client.sell(ConfigManager.get_config().tradeInsturment, amount, price, True, "")
         return order
 
     @staticmethod
     def create_sl_sell_order(price, amount):
         Util.get_logger().info("Placing SL Sell Order for " + str(amount) + " contracts at " + str(price))
-        client = RestClient(ConfigManager.get_config().apiKey1, ConfigManager.get_config().apiSecret1, ConfigManager.get_config().apiUrl)
+        client = RestClient(ConfigManager.get_config().apiKey2, ConfigManager.get_config().apiSecret2, ConfigManager.get_config().apiUrl)
         order = client.sell_stop_market_order(ConfigManager.get_config().tradeInsturment, amount, price)
         return order        
 
@@ -47,14 +47,14 @@ class TradeManager:
 
         # Create the stop loss order
         order = TradeManager.create_sl_sell_order(ConfigManager.get_config().stopLossPrice, ConfigManager.get_config().numOfOrders * ConfigManager.get_config().contractSize)
-        DatabaseManager.create_sl_order_entry(order['order']['orderId'], ConfigManager.get_config().stopLossPrice, ConfigManager.get_config().numOfOrders * ConfigManager.get_config().contractSize)
+        DatabaseManager.create_sl_order_entry(order['order']['order_id'], ConfigManager.get_config().stopLossPrice, ConfigManager.get_config().numOfOrders * ConfigManager.get_config().contractSize)     #Note
 
 
     @staticmethod
     def cancel_all_current_orders():
 
         orders = DatabaseManager.get_all_open_orders()
-        client = RestClient(ConfigManager.get_config().apiKey1, ConfigManager.get_config().apiSecret1, ConfigManager.get_config().apiUrl)
+        client = RestClient(ConfigManager.get_config().apiKey2, ConfigManager.get_config().apiSecret2, ConfigManager.get_config().apiUrl)
 
         for order in orders:
             client.cancel(order.orderId)
@@ -64,8 +64,8 @@ class TradeManager:
 
     @staticmethod
     def close_all_positions():
-        client = RestClient(ConfigManager.get_config().apiKey1, ConfigManager.get_config().apiSecret1, ConfigManager.get_config().apiUrl)
-        positions = client.positions()
+        client = RestClient(ConfigManager.get_config().apiKey2, ConfigManager.get_config().apiSecret2, ConfigManager.get_config().apiUrl)
+        positions = client.positions()    #currency argument can be provided
 
         for x in positions:
             if x['direction'] == 'buy':
@@ -85,11 +85,11 @@ class TradeManager:
                 if order.direction == 'buy':
                     #if currentPrice > order.price:
                     newOrder = TradeManager.create_new_buy_order(order.price, order.contractSize)
-                    DatabaseManager.update_new_order_entry(order, newOrder['order']['orderId'], "open")
+                    DatabaseManager.update_new_order_entry(order, newOrder['order']['order_id'], "open")  #Note
 
                 else:
                     newOrder = TradeManager.create_new_sell_order(order.price, order.contractSize)
-                    DatabaseManager.update_new_order_entry(order, newOrder['order']['orderId'], "open")
+                    DatabaseManager.update_new_order_entry(order, newOrder['order']['order_id'], "open")  #Note
 
             except Exception as e:
                 print(e)
@@ -101,7 +101,7 @@ class TradeManager:
         if TradeManager.stopLossTriggered == False:
             orders = DatabaseManager.get_all_open_orders()
 
-            client = RestClient(ConfigManager.get_config().apiKey1, ConfigManager.get_config().apiSecret1, ConfigManager.get_config().apiUrl)
+            client = RestClient(ConfigManager.get_config().apiKey2, ConfigManager.get_config().apiSecret2, ConfigManager.get_config().apiUrl)
 
             for order in orders:
 
@@ -109,9 +109,9 @@ class TradeManager:
                     
                     updatedOrder = client.getorderstate(order.orderId)
 
-                    DatabaseManager.update_order_entry(order.orderId, updatedOrder['state'])
+                    DatabaseManager.update_order_entry(order.orderId, updatedOrder['order_state'])    #Note
 
-                    if updatedOrder['state'] == "filled":
+                    if updatedOrder['order_state'] == "filled":   #Note
 
                         if "SLMS" in order.orderId:
                             # Stop loss fired
@@ -122,7 +122,7 @@ class TradeManager:
 
 
                         else:
-                            if updatedOrder['direction'] == "buy":
+                            if updatedOrder['direction'] == "buy":    #Note
 
                                 if ConfigManager.get_config().fcbMode:
                                     #Create new one

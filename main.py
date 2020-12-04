@@ -26,8 +26,8 @@ class DeriShell(cmd.Cmd):
 
     def do_initalize(self, line):
         try:
-            self.client1 = RestClient(ConfigManager.get_config().apiKey1, ConfigManager.get_config().apiSecret1, ConfigManager.get_config().apiUrl)
-            self.client1.account()
+            self.client2 = RestClient(ConfigManager.get_config().apiKey2, ConfigManager.get_config().apiSecret2, ConfigManager.get_config().apiUrl)
+            self.client2.account()
             Util.get_logger().info("Credentials Verified")
         except:
             Util.get_logger().info("Api credentials invalid")
@@ -93,27 +93,27 @@ class DeriShell(cmd.Cmd):
             Util.get_logger().info("Not enough parameters. Ex. set_sl_price 6000(in USD)")    
 
     def do_check_accounts(self, line):
-        if self.client1 != None:
-            print(self.client1.account())
+        if self.client2 != None:
+            print(self.client2.account())
 
     def do_check_positions(self, line):
-        if self.client1 != None:
-            print(self.client1.positions())
+        if self.client2 != None:
+            print(self.client2.positions())
 
     def do_get_summary(self,line):
-        if self.client1 != None:
-            print(self.client1.getsummary(ConfigManager.get_config().tradeInsturment))
+        if self.client2 != None:
+            print(self.client2.getsummary(ConfigManager.get_config().tradeInsturment))
 
     def do_test(self, line):
-        if self.client1 != None:
-            data = self.client1.buy(ConfigManager.get_config().tradeInsturment, 100, 9909, True, "")
+        if self.client2 != None:
+            data = self.client2.buy(ConfigManager.get_config().tradeInsturment, 100, 9909, True, "")
             print(data)
             time.sleep(4)
-            print(self.client1.orderhistory(10))
-            print(self.client1.getopenorders(ConfigManager.get_config().tradeInsturment, data['order']['orderId']))
+            print(self.client2.orderhistory(10))    #currency is required for this function
+            print(self.client2.getopenorders(ConfigManager.get_config().tradeInsturment, data['order']['orderId']))     #currency argument is optional. orderId to be removed
 
     def do_create_ladder(self, line):
-        if self.client1 != None:
+        if self.client2 != None:
             TradeManager.setup_inital_ladder()
 
     def do_reset(self, line):
@@ -138,7 +138,7 @@ class DeriShell(cmd.Cmd):
         self.rt.stop()
 
     def do_start_update(self,line):
-        if self.client1 != None:
+        if self.client2 != None:
             if self.rt == None:
                 self.rt = RepeatedTimer(10, TradeManager.update_all)
             else:
@@ -148,7 +148,7 @@ class DeriShell(cmd.Cmd):
         TradeManager.update_all()  
 
     def do_update_orders(self, line):
-        if self.client1 != None:
+        if self.client2 != None:
             TradeManager.update_order_status()
 
     def do_show_orders(self, line):

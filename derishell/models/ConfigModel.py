@@ -1,8 +1,8 @@
 class ConfigModel:
 
     def __init__(self):
-        self.apiKey1 = ""
-        self.apiSecret1 =  ""
+        self.apiKey2 = ""
+        self.apiSecret2 =  ""
         self.numOfOrders = 5
         self.contractSize = 100
         self.tradeInsturment = "BTC-PERPETUAL"
